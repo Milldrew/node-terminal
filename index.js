@@ -1,4 +1,6 @@
 const express = require('express');
+const NEW_SOCKET_EVENT = 'new-socket';
+const REMOVE_SOCKET_EVENT = 'remove-socket';
 const http = require('http');
 const {Server} = require('socket.io');
 const pty = require('node-pty');
@@ -9,6 +11,7 @@ const chalk = require('chalk').default;
 
 const {formatLogEntry} = require('./functions.js');
 const {CORS_OPTIONS, PTY_OPTIONS} = require('./constants.js');
+
 
 // Set up Express and HTTP server
 const app = express();
@@ -59,18 +62,22 @@ app.get('/', (req, res) => {
 const shell = os.platform() === 'win32' ? 'powershell.exe' : 'zsh';
 const ptyProcess = pty.spawn(shell, [], PTY_OPTIONS);
 
+
+const socketIdToPtyChildDataListener = {
+
+};
+const socketIDtoSocket = {};
+
 // Handle WebSocket connections
 io.on('connection', (socket) => {
+  socketIDtoSocket[socket.id] = socket;
   // Log connection details
   logConnection(socket, 'connection');
 
-  // Send terminal output to client
-  ptyProcess.on('data', (data) => {
-    socket.emit('terminalOutput', data);
-  });
 
   // Handle input from client
   socket.on('terminalInput', (data) => {
+    console.log(data)
     ptyProcess.write(data);
   });
 
@@ -80,8 +87,19 @@ io.on('connection', (socket) => {
   });
 
   // Handle client disconnect
-  socket.on('disconnect', () => {
+  socket.on('disconnect', (reason) => {
     logConnection(socket, 'disconnection');
+    console.log(chalk.yellow(`Client disconnected: ${socket.id} (${reason})`));
+    // Remove the listener for this socket
+    const terminalListener = socketIdToPtyChildDataListener[socket.id];
+  });
+});
+ptyProcess.on('data', async (data) => {
+  let sockets = await io.fetchSockets()
+
+  console.log(data)
+  sockets.forEach((socket) => {
+    socket.emit('terminalOutput', data);
   });
 });
 

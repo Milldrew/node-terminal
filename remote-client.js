@@ -3,7 +3,7 @@ const io = require('socket.io-client');
 const readline = require('readline');
 
 // Connect to the WebSocket server
-const socket = io('http://24.117.201.136:3453');
+const socket = io('http://localhost:3000');
 
 // Set up readline interface for terminal input
 const rl = readline.createInterface({

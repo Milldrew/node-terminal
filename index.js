@@ -93,20 +93,27 @@ app.get('/', (req, res) => {
 
 // Create a zsh pseudo-terminal
 const shell = os.platform() === 'win32' ? 'powershell.exe' : 'zsh';
-const ptyProcess = pty.spawn(shell, [], {
-  name: 'xterm-color',
-  cols: 80,
-  rows: 30,
-  cwd: process.env.HOME,
-  env: process.env
-});
+
+const socketToPtySubProcess = {}
 
 // Handle WebSocket connections
 io.on('connection', (socket) => {
+
+
   // Log connection details
   logConnection(socket, 'connection');
 
   // Send terminal output to client
+  const ptyProcess = pty.spawn(shell, [], {
+    name: 'xterm-color',
+    cols: 80,
+    rows: 30,
+    cwd: process.env.HOME,
+    env: process.env
+  });
+  socket['socket'] = ptyProcess;
+  console.log('===================================CONNECTIONS=================================')
+  console.table(socketToPtySubProcess)
   ptyProcess.on('data', (data) => {
     socket.emit('terminalOutput', data);
   });
@@ -132,6 +139,10 @@ io.on('connection', (socket) => {
     console.log(chalk.magenta(`Terminal exited with code ${code}`));
   });
 });
+io.on('disconnect', (socket) => {
+  // Log disconnection details
+  logConnection(socket, 'disconnection');
+})
 
 // Start the server
 const PORT = process.env.PORT || 3000;

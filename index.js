@@ -111,7 +111,7 @@ io.on('connection', (socket) => {
     cwd: process.env.HOME,
     env: process.env
   });
-  socket['socket'] = ptyProcess;
+  socketToPtySubProcess[socket.id] = ptyProcess
   console.log('===================================CONNECTIONS=================================')
   console.table(socketToPtySubProcess)
   ptyProcess.on('data', (data) => {

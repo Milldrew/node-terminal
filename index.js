@@ -11,7 +11,9 @@ const chalk = require('chalk').default;
 
 const {formatLogEntry} = require('./functions.js');
 const {CORS_OPTIONS, PTY_OPTIONS} = require('./constants.js');
+const EventEmitter = require('events');
 
+const globalEE = new EventEmitter;
 
 // Set up Express and HTTP server
 const app = express();
@@ -60,16 +62,19 @@ app.get('/', (req, res) => {
 
 // Create a zsh pseudo-terminal
 const shell = os.platform() === 'win32' ? 'powershell.exe' : 'zsh';
-const ptyProcess = pty.spawn(shell, [], PTY_OPTIONS);
 
 
-const socketIdToPtyChildDataListener = {
+const socketIdToPtyChild = {
 
 };
 const socketIDtoSocket = {};
 
 // Handle WebSocket connections
 io.on('connection', (socket) => {
+  const ptyProcess = pty.spawn(shell, [], PTY_OPTIONS);
+  socketIdToPtyChild[socket.id] = ptyProcess;
+  globalEE.emit(NEW_SOCKET_EVENT, socket);
+  socketIDtoSocket[socket.id] = socket;
   socketIDtoSocket[socket.id] = socket;
   // Log connection details
   logConnection(socket, 'connection');
@@ -82,7 +87,7 @@ io.on('connection', (socket) => {
 
   // Handle terminal resize from client
   socket.on('resize', ({cols, rows}) => {
-    ptyProcess.resize(Math.max(cols || 80, 80), Math.max(rows || 30, 30));
+    socketIdToPtyChild[socket.id].resize(Math.max(cols || 80, 80), Math.max(rows || 30, 30));
   });
 
   // Handle client disconnect
@@ -90,15 +95,21 @@ io.on('connection', (socket) => {
     logConnection(socket, 'disconnection');
     console.log(chalk.yellow(`Client disconnected: ${socket.id} (${reason})`));
     // Remove the listener for this socket
-    const terminalListener = socketIdToPtyChildDataListener[socket.id];
+    const terminalListener = socketIdToPtyChild[socket.id];
+    let nodePty = socketIdToPtyChild[socket.id];
+    if (nodePty) {
+      nodePty.kill();
+      delete socketIdToPtyChild[socket.id];
+    }
   });
 });
-ptyProcess.on('data', async (data) => {
-  let sockets = await io.fetchSockets()
-
-  sockets.forEach((socket) => {
-    socket.emit('terminalOutput', data);
-  });
+globalEE.on(NEW_SOCKET_EVENT, (socket) => {
+  const nodePty = socketIdToPtyChild[socket.id];
+  if (nodePty) {
+    nodePty.on('data', (data) => {
+      socket.emit('terminalOutput', data);
+    });
+  }
 });
 
 //handle closed socket

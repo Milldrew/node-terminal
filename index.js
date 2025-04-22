@@ -77,7 +77,6 @@ io.on('connection', (socket) => {
 
   // Handle input from client
   socket.on('terminalInput', (data) => {
-    console.log(data)
     ptyProcess.write(data);
   });
 
@@ -97,7 +96,6 @@ io.on('connection', (socket) => {
 ptyProcess.on('data', async (data) => {
   let sockets = await io.fetchSockets()
 
-  console.log(data)
   sockets.forEach((socket) => {
     socket.emit('terminalOutput', data);
   });

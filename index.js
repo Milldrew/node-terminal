@@ -16,8 +16,9 @@ const server = http.createServer(app);
 const PATH_TO_BUNDLE_DIR = path.join(__dirname, 'dist/browser');
 //check if the directory exists
 console.log(`Serving static files from ${PATH_TO_BUNDLE_DIR}`);
-// app.use('/app', express.static(PATH_TO_BUNDLE_DIR));
-app.use(/.*/, express.static(PATH_TO_BUNDLE_DIR));
+app.use('/app', express.static(PATH_TO_BUNDLE_DIR));
+app.use('/app/*', express.static(PATH_TO_BUNDLE_DIR));
+
 // Serve the index.html file
 
 
